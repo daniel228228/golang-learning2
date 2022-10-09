@@ -1,8 +1,6 @@
 package main
 
-import (
-	"homework_1/solver"
-)
+import "homework_1/solver"
 
 const (
 	precision float64 = 0.0001

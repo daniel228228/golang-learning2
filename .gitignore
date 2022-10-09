@@ -1,0 +1,11 @@
+.DS_Store
+.vscode
+.idea
+*.exe
+*.exe~
+*.log
+*.dll
+*.so
+*.dylib
+*.test
+*.env

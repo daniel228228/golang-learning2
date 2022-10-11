@@ -10,6 +10,7 @@ var testEqual = []struct {
 	{[]int{1, 2, 3}, []int{1, 2, 3, 4}, false},
 	{[]int{1, 2, 3}, []int{3, 2, 1}, false},
 	{[]int{10, 11, 12}, []int{10, 11, 12}, true},
+	{[]int{1, 2, 3}, []int{1, 2, 4}, false},
 }
 
 func TestEqual(t *testing.T) {

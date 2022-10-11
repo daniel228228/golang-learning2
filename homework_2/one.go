@@ -1,9 +1,27 @@
 package main
 
 func TwoSum(nums []int, target int) []int {
-	// TODO: Implement me
+	var result []int
+	for i := 0; i < len(nums); i++ {
+		for j := i + 1; j < len(nums); j++ {
+			if nums[i]+nums[j] == target {
+				result = append(result, i, j)
+				break
+			}
+		}
+	}
+	return result
 }
 
 func Equal(a, b []int) bool {
-	// TODO: Implement me
+	if len(a) == len(b) {
+		for i, v := range a {
+			if v != b[i] {
+				return false
+			} else {
+				return true
+			}
+		}
+	}
+	return false
 }

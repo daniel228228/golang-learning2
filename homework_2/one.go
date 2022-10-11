@@ -14,14 +14,13 @@ func TwoSum(nums []int, target int) []int {
 }
 
 func Equal(a, b []int) bool {
-	if len(a) == len(b) {
-		for i, v := range a {
-			if v != b[i] {
-				return false
-			} else {
-				return true
-			}
+	if len(a) != len(b) {
+		return false
+	}
+	for i, v := range a {
+		if v != b[i] {
+			return false
 		}
 	}
-	return false
+	return true
 }

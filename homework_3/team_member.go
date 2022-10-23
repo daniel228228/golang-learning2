@@ -1,6 +1,6 @@
 package main
 
 type TeamMember struct {
-	/* TODO: complete me */
+	*Client
 	role string
 }

@@ -9,3 +9,5 @@
 *.dylib
 *.test
 *.env
+
+*/bin/

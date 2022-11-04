@@ -41,7 +41,7 @@ func main() {
 		app.log.Printf("printf test: %#v %t %s", struct{}{}, false, "abcdef")
 	}
 
-	app.log.SetOutput(os.Stdin)
+	app.log.SetOutput(os.Stdout)
 	app.log.SetDebugMode(false)
 	test()
 

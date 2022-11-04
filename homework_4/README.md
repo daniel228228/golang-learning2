@@ -23,11 +23,11 @@ type Logger interface {
 
 Необходимо реализовать интерфейс Logger в пакете logger
 
-Каждая функция вывода (первые 6 в интерфейсе) должна обладать поведением, аналогичным, соответственно, `fmt.Fprintln` и `fmt.Fprintf` (эти функции должны вызываться из функций, реализованных вами, т.е. вы реализуете обёртку над `Fprint*` функциями)
-
 Предпоследняя функция (`SetOutput`) должна устанавливать направление вывода информации для первых 6-ти функций интерфейса `Logger`
 
 Последняя функция (`SetDebugMode`) должна переключать флаг `debugMode`: если `debugMode == true`, то `Debug` и `Debugf` выводят лог-сообщения, иначе они ничего не делают
+
+Каждая функция вывода (первые 6 в интерфейсе) должна обладать поведением, аналогичным, соответственно, `fmt.Fprintln` и `fmt.Fprintf` (эти функции должны вызываться из функций, реализованных вами, т.е. вы реализуете обёртку над `Fprint*` функциями).
 
 `Debug` и `Debugf` должны выводить свои сообщения в заданную `SetOutput` цель с меткой **[DEBUG]** перед сообщением, когда `debugMode == true`:
 
@@ -43,6 +43,32 @@ type Logger interface {
 
 ```plain
 [DEBUG] [ERROR] log message
+```
+
+Каждое лог-сообщение должно выводиться на новой строке. Лишних переносов строк так же не должно быть
+
+Осторожнее с пробелами: между метками должен быть только 1 пробел, чтобы всё было красиво :)
+
+Плохо:
+
+```plain
+[DEBUG]  debug test
+[DEBUG] debugf test: 123 {a:0 b:1 c:2} *main.app
+[DEBUG]  [ERROR]  error test
+[DEBUG] [ERROR] errorf test: any error
+[DEBUG]  print test
+[DEBUG] printf test: struct {}{} false abcdef
+```
+
+Хорошо:
+
+```plain
+[DEBUG] debug test
+[DEBUG] debugf test: 123 {a:0 b:1 c:2} *main.app
+[DEBUG] [ERROR] error test
+[DEBUG] [ERROR] errorf test: any error
+[DEBUG] print test
+[DEBUG] printf test: struct {}{} false abcdef
 ```
 
 #### Пример использования для понимания структуры логгера

@@ -15,6 +15,6 @@ func NewCustomWriter() *customWriter {
 }
 
 func (c *customWriter) Write(p []byte) (n int, err error) {
-	fmt.Println("[CUSTOM WRITER]", string(p))
+	fmt.Print("[CUSTOM WRITER]", string(p))
 	return len(p), nil
 }

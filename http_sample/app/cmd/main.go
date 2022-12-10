@@ -10,7 +10,9 @@ import (
 	"strings"
 	"syscall"
 
+	"http_sample/internal/app"
 	"http_sample/internal/config"
+	"http_sample/internal/err_chan"
 	"http_sample/internal/logger"
 )
 
@@ -61,6 +63,8 @@ func main() {
 			info = ctx.Err()
 		case s := <-sig:
 			info = s.String()
+		case <-err_chan.Catch():
+			info = "error"
 		}
 
 		log.Printf("%v received: stopping app", info)
@@ -68,7 +72,9 @@ func main() {
 		cancel()
 	}()
 
-	// if err := app.NewApp(config, log).Run(ctx); err != nil {
-	// 	log.Errorf("app error: %v", err)
-	// }
+	app.Run(ctx, log, config)
+
+	if err_chan.Error() != nil {
+		log.Error(err_chan.Error())
+	}
 }

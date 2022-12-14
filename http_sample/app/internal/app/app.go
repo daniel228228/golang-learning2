@@ -7,75 +7,88 @@ import (
 	"runtime/debug"
 
 	"http_sample/internal/config"
-	"http_sample/internal/err_chan"
+	"http_sample/internal/errset"
+	"http_sample/internal/repo"
 
 	"http_sample/internal/logger"
 )
 
 var App *application
 
+func init() {
+	App = &application{}
+}
+
 func Run(ctx context.Context, logger logger.Logger, config *config.Config) {
-	App = &application{
-		ctx:    ctx,
-		config: config,
-		logger: logger,
-	}
+	App.ctx = ctx
+	App.logger = logger
+	App.config = config
 
 	// repo
+	select {
+	case <-ctx.Done():
+		return
+	default:
+	}
 	repoImpl := repo.NewRepo(App.config, App.logger)
 	App.Repo.ComponentControl = repoImpl
 	App.Repo.Impl = repoImpl
 
 	if err := App.Repo.Start(App.ctx); err != nil {
-		err_chan.New(err)
+		errset.New(fmt.Errorf("%q error: %w", "repo", err))
 	}
-	defer shutdown(App.Repo.Shutdown)
+	defer shutdown(App.Repo.Shutdown, "repo")
 
 	// service
+	select {
+	case <-ctx.Done():
+		return
+	default:
+	}
 	serviceImpl := service.NewService(App.config, App.logger, App.Repo.Impl)
 	App.Service.ComponentControl = serviceImpl
 	App.Service.Impl = serviceImpl
 
 	if err := App.Service.Start(App.ctx); err != nil {
-		err_chan.New(err)
+		errset.New(fmt.Errorf("%q error: %w", "service", err))
 	}
-	defer shutdown(App.Service.Shutdown)
+	defer shutdown(App.Service.Shutdown, "service")
 
 	// http_handler
+	select {
+	case <-ctx.Done():
+		return
+	default:
+	}
 	httpHandlerImpl := http_handler.NewHttpHandler(App.config, App.logger, App.Service.Impl)
 	App.HttpHandler.ServerControl = httpHandlerImpl
 	App.HttpHandler.Impl = httpHandlerImpl
 
-	serve(App.HttpHandler.Serve)
-	defer shutdown(App.HttpHandler.Shutdown)
+	serve(App.HttpHandler.Serve, "http_handler")
+	defer shutdown(App.HttpHandler.Shutdown, "http_handler")
 
 	<-ctx.Done()
 }
 
-func shutdown(shutdown func(ctx context.Context) error) {
-	if err := shutdown(context.Background()); err != nil &&
+func shutdown(shutdown func(ctx context.Context) error, name string) {
+	if err := shutdown(App.ctx); err != nil &&
 		!errors.Is(err, context.Canceled) &&
 		!errors.Is(err, context.DeadlineExceeded) {
-		err_chan.New(fmt.Errorf("finished %T with error: %w", shutdown, err))
+		errset.New(fmt.Errorf("finished %q with error: %w", name, err))
 	}
 }
 
-func serve(server func(ctx context.Context) error) {
-	var cancel context.CancelFunc
-	App.ctx, cancel = context.WithCancel(App.ctx)
-
+func serve(server func(ctx context.Context) error, name string) {
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
 				App.logger.Fatalf("panic: %v\n\n%s", r, string(debug.Stack()))
-				cancel()
+				errset.New(fmt.Errorf("panic in %q", name))
 			}
 		}()
 
-		if err := server(context.Background()); err != nil {
-			err_chan.New(fmt.Errorf("error serving %T: %w", server, err))
+		if err := server(App.ctx); err != nil {
+			errset.New(fmt.Errorf("error serving %q: %w", name, err))
 		}
-
-		cancel()
 	}()
 }

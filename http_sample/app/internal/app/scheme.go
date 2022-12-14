@@ -5,6 +5,7 @@ import (
 
 	"http_sample/internal/config"
 	"http_sample/internal/logger"
+	"http_sample/internal/repo"
 )
 
 type ComponentControl interface {

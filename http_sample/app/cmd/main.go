@@ -12,7 +12,7 @@ import (
 
 	"http_sample/internal/app"
 	"http_sample/internal/config"
-	"http_sample/internal/err_chan"
+	"http_sample/internal/errset"
 	"http_sample/internal/logger"
 )
 
@@ -63,7 +63,7 @@ func main() {
 			info = ctx.Err()
 		case s := <-sig:
 			info = s.String()
-		case <-err_chan.Catch():
+		case <-errset.Ch:
 			info = "error"
 		}
 
@@ -74,7 +74,7 @@ func main() {
 
 	app.Run(ctx, log, config)
 
-	if err_chan.Error() != nil {
-		log.Error(err_chan.Error())
+	if err := errset.Error(); err != nil {
+		log.Error(err)
 	}
 }

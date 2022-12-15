@@ -6,12 +6,18 @@ import (
 	"sync"
 )
 
-var Ch chan struct{}
+var errchanImpl *errchan
 var errsetImpl *errset
 
 func init() {
-	Ch = make(chan struct{})
+	errchanImpl = &errchan{}
 	errsetImpl = &errset{}
+}
+
+func Catch() <-chan struct{} {
+	errchanImpl.ch = make(chan struct{})
+	errchanImpl.setActive(true)
+	return errchanImpl.ch
 }
 
 func New(err error) {
@@ -20,9 +26,13 @@ func New(err error) {
 	}
 
 	errsetImpl.mtx.Lock()
-	defer errsetImpl.mtx.Unlock()
 	errsetImpl.errors = append(errsetImpl.errors, err)
-	Ch <- struct{}{}
+	errsetImpl.mtx.Unlock()
+
+	if errchanImpl.isActive() {
+		close(errchanImpl.ch)
+		errchanImpl.setActive(false)
+	}
 }
 
 func Error() error {
@@ -34,6 +44,26 @@ func Error() error {
 	}
 
 	return errsetImpl
+}
+
+type errchan struct {
+	mtx    sync.Mutex
+	active bool
+	ch     chan struct{}
+}
+
+func (e *errchan) setActive(active bool) {
+	e.mtx.Lock()
+	defer e.mtx.Unlock()
+
+	e.active = active
+}
+
+func (e *errchan) isActive() bool {
+	e.mtx.Lock()
+	defer e.mtx.Unlock()
+
+	return e.active
 }
 
 type errset struct {

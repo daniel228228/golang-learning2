@@ -63,7 +63,7 @@ func main() {
 			info = ctx.Err()
 		case s := <-sig:
 			info = s.String()
-		case <-errset.Ch:
+		case <-errset.Catch():
 			info = "error"
 		}
 

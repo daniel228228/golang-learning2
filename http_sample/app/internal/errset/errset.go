@@ -15,9 +15,7 @@ func init() {
 }
 
 func Catch() <-chan struct{} {
-	errchanImpl.ch = make(chan struct{})
-	errchanImpl.setActive(true)
-	return errchanImpl.ch
+	return errchanImpl.newChan()
 }
 
 func New(err error) {
@@ -25,55 +23,90 @@ func New(err error) {
 		return
 	}
 
-	errsetImpl.mtx.Lock()
-	errsetImpl.errors = append(errsetImpl.errors, err)
-	errsetImpl.mtx.Unlock()
-
-	if errchanImpl.isActive() {
-		close(errchanImpl.ch)
-		errchanImpl.setActive(false)
-	}
+	errsetImpl.add(err)
+	errchanImpl.notify()
 }
 
 func Error() error {
-	errsetImpl.mtx.Lock()
-	defer errsetImpl.mtx.Unlock()
+	errsetImpl.mtx.RLock()
+	defer errsetImpl.mtx.RUnlock()
 
-	if len(errsetImpl.Errors()) == 0 {
+	if len(Errors()) == 0 {
 		return nil
 	}
 
 	return errsetImpl
 }
 
+func Errors() []error {
+	errsetImpl.mtx.RLock()
+	defer errsetImpl.mtx.RUnlock()
+
+	return errsetImpl.errors
+}
+
 type errchan struct {
-	mtx    sync.Mutex
+	mtx    sync.RWMutex
 	active bool
 	ch     chan struct{}
+	chans  []chan struct{}
 }
 
-func (e *errchan) setActive(active bool) {
+func (e *errchan) newChan() <-chan struct{} {
 	e.mtx.Lock()
 	defer e.mtx.Unlock()
 
-	e.active = active
+	ch := make(chan struct{})
+	e.chans = append(e.chans, ch)
+
+	if !e.active {
+		e.ch = make(chan struct{})
+		e.active = true
+
+		go e.broadcaster()
+	}
+
+	return ch
 }
 
-func (e *errchan) isActive() bool {
+func (e *errchan) notify() {
+	e.mtx.RLock()
+	defer e.mtx.RUnlock()
+
+	if e.active {
+		e.ch <- struct{}{}
+	}
+}
+
+func (e *errchan) broadcaster() {
+	<-e.ch
+
 	e.mtx.Lock()
 	defer e.mtx.Unlock()
 
-	return e.active
+	for _, v := range e.chans {
+		close(v)
+	}
+
+	e.chans = nil
+	e.active = false
 }
 
 type errset struct {
-	mtx    sync.Mutex
+	mtx    sync.RWMutex
 	errors []error
 }
 
-func (e *errset) Error() (res string) {
+func (e *errset) add(err error) {
 	e.mtx.Lock()
 	defer e.mtx.Unlock()
+
+	e.errors = append(e.errors, err)
+}
+
+func (e *errset) Error() (res string) {
+	e.mtx.RLock()
+	defer e.mtx.RUnlock()
 
 	switch len(e.errors) {
 	case 0:
@@ -91,13 +124,9 @@ func (e *errset) Error() (res string) {
 	return
 }
 
-func (e *errset) Errors() []error {
-	return e.errors
-}
-
 func (e *errset) Is(target error) bool {
-	e.mtx.Lock()
-	defer e.mtx.Unlock()
+	e.mtx.RLock()
+	defer e.mtx.RUnlock()
 
 	for _, err := range e.errors {
 		if errors.Is(err, target) {
@@ -109,8 +138,8 @@ func (e *errset) Is(target error) bool {
 }
 
 func (e *errset) As(target interface{}) bool {
-	e.mtx.Lock()
-	defer e.mtx.Unlock()
+	e.mtx.RLock()
+	defer e.mtx.RUnlock()
 
 	for _, err := range e.errors {
 		if errors.As(err, target) {

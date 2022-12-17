@@ -1,0 +1,18 @@
+FROM golang:alpine
+
+WORKDIR /app/test-service
+
+COPY . .
+
+RUN go mod download
+
+RUN go get github.com/githubnemo/CompileDaemon
+RUN go install github.com/githubnemo/CompileDaemon
+
+RUN apk add --no-cache alpine-conf && \
+  setup-timezone -z Europe/Moscow
+
+ENTRYPOINT CompileDaemon -exclude-dir=".git" \
+  -polling=true -polling-interval=5000 \
+  -build="go build -race -o bin/server cmd/main.go" -command="./bin/server" \
+  -log-prefix=false -graceful-kill=true -graceful-timeout=30

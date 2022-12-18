@@ -26,7 +26,7 @@ func Run(ctx context.Context, logger logger.Logger, config *config.Config) {
 
 	// repo
 	select {
-	case <-ctx.Done():
+	case <-App.ctx.Done():
 		return
 	default:
 	}
@@ -41,7 +41,7 @@ func Run(ctx context.Context, logger logger.Logger, config *config.Config) {
 
 	// service
 	select {
-	case <-ctx.Done():
+	case <-App.ctx.Done():
 		return
 	default:
 	}
@@ -56,7 +56,7 @@ func Run(ctx context.Context, logger logger.Logger, config *config.Config) {
 
 	// http_handler
 	select {
-	case <-ctx.Done():
+	case <-App.ctx.Done():
 		return
 	default:
 	}
@@ -67,7 +67,7 @@ func Run(ctx context.Context, logger logger.Logger, config *config.Config) {
 	serve(App.HttpHandler.Serve, "http_handler")
 	defer shutdown(App.HttpHandler.Shutdown, "http_handler")
 
-	<-ctx.Done()
+	<-App.ctx.Done()
 }
 
 func shutdown(shutdown func(ctx context.Context) error, name string) {

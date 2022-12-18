@@ -9,11 +9,16 @@ import (
 	"runtime/debug"
 	"strings"
 	"syscall"
+	"time"
 
 	"http_sample/internal/app"
 	"http_sample/internal/config"
 	"http_sample/internal/errset"
 	"http_sample/internal/logger"
+)
+
+const (
+	GracefulShutdownTimeout = 60
 )
 
 func main() {
@@ -70,11 +75,26 @@ func main() {
 		log.Printf("%v received: stopping app", info)
 
 		cancel()
+
+		<-time.After(GracefulShutdownTimeout * time.Second)
+		log.Print("failed to gracefully stop the current process, proceeding to force stop")
+
+		if err := errset.Error(); err != nil {
+			log.Error("errset: ", err)
+		}
+
+		log.Print("stopped app (os.Exit(1))")
+
+		if config.Log.WriteFile {
+			logFile.Close()
+		}
+
+		os.Exit(1)
 	}()
 
 	app.Run(ctx, log, config)
 
 	if err := errset.Error(); err != nil {
-		log.Error(err)
+		log.Error("errset: ", err)
 	}
 }

@@ -10,11 +10,13 @@ var errchanImpl *errchan
 var errsetImpl *errset
 
 func init() {
-	errchanImpl = &errchan{}
+	errchanImpl = &errchan{
+		ch: make(chan error),
+	}
 	errsetImpl = &errset{}
 }
 
-func Catch() <-chan struct{} {
+func Catch() <-chan error {
 	return errchanImpl.newChan()
 }
 
@@ -24,14 +26,14 @@ func New(err error) {
 	}
 
 	errsetImpl.add(err)
-	errchanImpl.notify()
+	errchanImpl.notify(err)
 }
 
 func Error() error {
 	errsetImpl.mtx.RLock()
 	defer errsetImpl.mtx.RUnlock()
 
-	if len(Errors()) == 0 {
+	if len(errsetImpl.errors) == 0 {
 		return nil
 	}
 
@@ -46,50 +48,48 @@ func Errors() []error {
 }
 
 type errchan struct {
-	mtx    sync.RWMutex
-	active bool
-	ch     chan struct{}
-	chans  []chan struct{}
+	mtx   sync.Mutex
+	ch    chan error
+	chans []chan error
 }
 
-func (e *errchan) newChan() <-chan struct{} {
+func (e *errchan) newChan() <-chan error {
+	ch := make(chan error, 1)
+
 	e.mtx.Lock()
 	defer e.mtx.Unlock()
 
-	ch := make(chan struct{})
 	e.chans = append(e.chans, ch)
 
-	if !e.active {
-		e.ch = make(chan struct{})
-		e.active = true
-
+	if len(e.chans) == 1 {
 		go e.broadcaster()
 	}
 
 	return ch
 }
 
-func (e *errchan) notify() {
-	e.mtx.RLock()
-	defer e.mtx.RUnlock()
+func (e *errchan) notify(err error) {
+	e.mtx.Lock()
+	active := len(e.chans) > 0
+	e.mtx.Unlock()
 
-	if e.active {
-		e.ch <- struct{}{}
+	if active {
+		e.ch <- err
 	}
 }
 
 func (e *errchan) broadcaster() {
-	<-e.ch
+	err := <-e.ch
 
 	e.mtx.Lock()
 	defer e.mtx.Unlock()
 
 	for _, v := range e.chans {
+		v <- err
 		close(v)
 	}
 
 	e.chans = nil
-	e.active = false
 }
 
 type errset struct {

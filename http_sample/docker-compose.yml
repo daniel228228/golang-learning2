@@ -1,0 +1,107 @@
+version: "3.9"
+
+services:
+  test-service:
+    build:
+      context: ./app
+      dockerfile: ${SERVICE_DOCKERFILE}
+    container_name: test-service
+    ports:
+      - ${SERVICE_HOST_PORT}:${SERVICE_PORT}
+    volumes:
+      - ./app:/app/test-service:rw
+    environment:
+      SERVICE_PORT: ${SERVICE_PORT}
+      LOG_FILE: ${LOG_FILE}
+      LOG_WRITE_CONSOLE: ${LOG_WRITE_CONSOLE}
+      LOG_WRITE_FILE: ${LOG_WRITE_FILE}
+      LOG_CONSOLE_LEVEL: ${LOG_CONSOLE_LEVEL}
+      LOG_FILE_LEVEL: ${LOG_FILE_LEVEL}
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_USER: ${DB_USER}
+      DB_PASS: ${DB_PASS}
+      DB_NAME: ${DB_NAME}
+    restart: unless-stopped
+    depends_on:
+      - database
+    networks:
+      - default
+
+  database:
+    container_name: ${DB_HOST}
+    image: postgres:latest
+    volumes:
+      - ./deploy/database:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASS}
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_EXTENSIONS: uuid-ossp
+      PGDATA: "/var/lib/postgresql/data/pgdata"
+      TZ: "Europe/Moscow"
+    restart: unless-stopped
+    networks:
+      - default
+    command:
+      - "postgres"
+      - "-c"
+      - "max_connections=50"
+      - "-c"
+      - "shared_buffers=1GB"
+      - "-c"
+      - "effective_cache_size=4GB"
+      - "-c"
+      - "work_mem=16MB"
+      - "-c"
+      - "maintenance_work_mem=512MB"
+      - "-c"
+      - "random_page_cost=1.1"
+      - "-c"
+      - "temp_file_limit=10GB"
+      - "-c"
+      - "log_min_duration_statement=200ms"
+      - "-c"
+      - "idle_in_transaction_session_timeout=10s"
+      - "-c"
+      - "lock_timeout=1s"
+      - "-c"
+      - "statement_timeout=60s"
+      - "-c"
+      - "shared_preload_libraries=pg_stat_statements"
+      - "-c"
+      - "pg_stat_statements.max=10000"
+      - "-c"
+      - "pg_stat_statements.track=all"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 4G
+
+  pgadmin:
+    container_name: pgadmin4
+    image: dpage/pgadmin4
+    ports:
+      - ${PGADMIN_HOST_PORT}:${PGADMIN_PORT}
+    volumes:
+      - ./deploy/pgadmin:/var/lib/pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+      PGADMIN_LISTEN_PORT: ${PGADMIN_PORT}
+    restart: unless-stopped
+    depends_on:
+      - database
+    networks:
+      - default
+
+networks:
+  default:
+    external: false

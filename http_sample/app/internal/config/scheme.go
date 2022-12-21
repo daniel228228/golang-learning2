@@ -9,4 +9,11 @@ type Config struct {
 		ConsoleLevel string `env_config:"LOG_CONSOLE_LEVEL"`
 		FileLevel    string `env_config:"LOG_FILE_LEVEL"`
 	}
+	DB struct {
+		Host string `env_config:"DB_HOST"`
+		Port string `env_config:"DB_PORT"`
+		User string `env_config:"DB_USER"`
+		Pass string `env_config:"DB_PASS"`
+		Name string `env_config:"DB_NAME"`
+	}
 }

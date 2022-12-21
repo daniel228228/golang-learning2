@@ -5,7 +5,10 @@ import (
 
 	"http_sample/internal/config"
 	"http_sample/internal/logger"
+
+	http_handler "http_sample/internal/handlers/http"
 	"http_sample/internal/repo"
+	"http_sample/internal/service"
 )
 
 type ComponentControl interface {

@@ -16,7 +16,7 @@ RUN go mod download
 
 COPY . .
 
-RUN go build -ldflags="-s -w" -race -o ./bin/test-service ./cmd/main.go
+RUN go build -ldflags="-s -w" -o ./bin/test-service ./cmd/main.go
 
 
 FROM alpine:latest

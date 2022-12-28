@@ -2,11 +2,13 @@ package http_handler
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 
 	"http_sample/internal/config"
 	"http_sample/internal/logger"
+	"http_sample/internal/models/dto"
 	"http_sample/internal/service"
 
 	"github.com/gorilla/mux"
@@ -38,6 +40,7 @@ func (h *httpHandler) Serve(ctx context.Context) error {
 	h.router.StrictSlash(true)
 	h.router.HandleFunc("/get", h.Get).Methods("GET")
 	h.router.HandleFunc("/write", h.Write).Methods("GET")
+	h.router.HandleFunc("/matrix", h.Matrix).Methods("POST")
 
 	h.server = &http.Server{
 		Addr:    ":" + h.config.ServicePort,
@@ -78,4 +81,62 @@ func (h *httpHandler) Write(w http.ResponseWriter, r *http.Request) {
 	} else {
 		w.Write([]byte("ok"))
 	}
+}
+
+func (h *httpHandler) Matrix(w http.ResponseWriter, r *http.Request) {
+	matrixes := &dto.Matrixes{}
+
+	if !h.decodeRequest(matrixes, w, r) {
+		return
+	}
+
+	result, err := h.service.CalculateMatrix(matrixes)
+
+	if err != nil {
+		var code int
+
+		switch {
+		case errors.Is(err, service.ErrBigMatrix):
+			code = http.StatusRequestEntityTooLarge
+		case errors.Is(err, service.ErrIncompatibleMatrixes):
+			code = http.StatusBadRequest
+		case errors.Is(err, service.ErrInternalError):
+			code = http.StatusInternalServerError
+		}
+
+		h.httpRespondWithError(w, code, err.Error())
+	} else {
+		h.httpRespondWithJSON(w, http.StatusOK, result)
+	}
+}
+
+func (h *httpHandler) decodeRequest(v any, w http.ResponseWriter, r *http.Request) bool {
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+
+	if err := decoder.Decode(v); err != nil {
+		h.httpRespondWithError(w, http.StatusBadRequest, "Invalid request")
+		return false
+	}
+
+	r.Body.Close()
+
+	return true
+}
+
+func (h *httpHandler) httpRespondWithError(w http.ResponseWriter, code int, message string) {
+	h.httpRespondWithJSON(w, code, map[string]string{"error": message})
+}
+
+func (h *httpHandler) httpRespondWithJSON(w http.ResponseWriter, code int, payload any) {
+	response, err := json.Marshal(payload)
+	if err != nil {
+		h.log.Errorf("json marshall error: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	w.Write(response)
 }
